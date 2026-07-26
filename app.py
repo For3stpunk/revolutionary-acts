@@ -4,6 +4,7 @@ import random
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import io
+import os
 
 # Load the dataset
 @st.cache_data
@@ -11,6 +12,28 @@ def load_data():
     return pd.read_excel("198 Nonviolent Revolutionary Actions.xlsx")
 
 df = load_data()
+
+def get_font(size, bold=False):
+    # Try common font paths across Windows, macOS, and Linux servers
+    font_candidates = [
+        # Linux / Streamlit Cloud common paths
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        # Windows paths
+        "C:\\Windows\\Fonts\\arialbd.ttf" if bold else "C:\\Windows\\Fonts\\arial.ttf",
+        # macOS paths
+        "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
+    ]
+    
+    for path in font_candidates:
+        if os.path.exists(path):
+            try:
+                return ImageFont.truetype(path, size)
+            except Exception:
+                continue
+                
+    # Absolute fallback if none found
+    return ImageFont.load_default()
 
 def generate_card():
     # Pick a random action (1 to 198)
@@ -27,29 +50,23 @@ def generate_card():
     image = Image.new("RGB", (width, height), bg_color)
     draw = ImageDraw.Draw(image)
 
-    # Load fonts (using standard default or uploaded TTF fonts)
-    try:
-        font_bold = ImageFont.truetype("Arial Bold.ttf", 96)   # Larger ID number
-        font_regular = ImageFont.truetype("Arial.ttf", 64)     # Larger action text
-        font_footer = ImageFont.truetype("Arial.ttf", 26)
-    except IOError:
-        font_bold = ImageFont.load_default()
-        font_regular = ImageFont.load_default()
-        font_footer = ImageFont.load_default()
+    # Load large, clear fonts
+    font_bold = get_font(110, bold=True)
+    font_regular = get_font(72, bold=True)
+    font_footer = get_font(26, bold=False)
 
     # 1. Render Centered Action ID near the top
     id_str = str(uuid)
     id_bbox = draw.textbbox((0, 0), id_str, font=font_bold)
     id_width = id_bbox[2] - id_bbox[0]
-    draw.text(((width - id_width) / 2, 180), id_str, font=font_bold, fill=text_color)
+    draw.text(((width - id_width) / 2, 160), id_str, font=font_bold, fill=text_color)
 
-    # 2. Render Centered Action Text below with balanced wrapping and spacing
-    wrapped_action = textwrap.wrap(action_text, width=18)
+    # 2. Render Centered Action Text below with proportional wrapping
+    wrapped_action = textwrap.wrap(action_text, width=16)
     
-    # Dynamically compute starting Y position so the text block stays vertically centered
-    line_height = 80
+    line_height = 90
     total_text_height = len(wrapped_action) * line_height
-    y_text = 400 + (250 - total_text_height) / 2
+    y_text = 400 + (200 - total_text_height) / 2
 
     for line in wrapped_action:
         line_bbox = draw.textbbox((0, 0), line, font=font_regular)
