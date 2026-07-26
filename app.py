@@ -7,9 +7,9 @@ import io
 import os
 
 
-# -------------------------
+# -----------------------------------
 # Load Dataset
-# -------------------------
+# -----------------------------------
 
 @st.cache_data
 def load_data():
@@ -19,59 +19,79 @@ def load_data():
 df = load_data()
 
 
-# -------------------------
+# -----------------------------------
 # Font Loader
-# -------------------------
+# -----------------------------------
 
 def get_font(size, bold=False):
+
     font_candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-        if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-
-        r"C:\Windows\Fonts\arialbd.ttf"
-        if bold else r"C:\Windows\Fonts\arial.ttf",
-
-        "/Library/Fonts/Arial Bold.ttf"
-        if bold else "/Library/Fonts/Arial.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
     ]
 
     for path in font_candidates:
         if os.path.exists(path):
             try:
                 return ImageFont.truetype(path, size)
-            except Exception:
-                continue
+            except:
+                pass
 
     return ImageFont.load_default()
 
 
-# -------------------------
+
+# -----------------------------------
+# Find Best Font Size
+# -----------------------------------
+
+def fit_font(draw, text, max_width, max_size, min_size):
+
+    for size in range(max_size, min_size, -5):
+
+        font = get_font(size, bold=True)
+
+        bbox = draw.textbbox(
+            (0, 0),
+            text,
+            font=font
+        )
+
+        width = bbox[2] - bbox[0]
+
+        if width <= max_width:
+            return font
+
+    return get_font(min_size, bold=True)
+
+
+
+# -----------------------------------
 # Generate Card
-# -------------------------
+# -----------------------------------
 
 def generate_card():
 
-    # Pick random action
-    uuid = random.randint(1, 198)
+    action_id = random.randint(1, 198)
 
-    row = df[df["ID"] == uuid]
+    row = df[df["ID"] == action_id]
+
 
     if not row.empty:
-        action_text = row["Action"].values[0]
+        action = str(row["Action"].values[0])
     else:
-        action_text = "Unknown Action"
+        action = "Unknown Action"
 
 
-    # Canvas
     width = 1080
     height = 1080
 
+
     bg_color = "#F9F9F7"
-    text_color = "#1A1A1A"
-    accent_color = "#555555"
+    text_color = "#111111"
+    footer_color = "#555555"
 
 
     image = Image.new(
@@ -80,113 +100,157 @@ def generate_card():
         bg_color
     )
 
+
     draw = ImageDraw.Draw(image)
 
 
-    # Fonts
-    font_id = get_font(
-        220,
+
+    # -----------------------------------
+    # HUGE ACTION NUMBER
+    # -----------------------------------
+
+    number_font = get_font(
+        300,
         bold=True
     )
 
-    font_action = get_font(
-        105,
-        bold=True
+
+    number_text = f"#{action_id}"
+
+
+    bbox = draw.textbbox(
+        (0,0),
+        number_text,
+        font=number_font
     )
 
-    font_footer = get_font(
-        28,
-        bold=False
-    )
 
+    number_width = bbox[2]-bbox[0]
 
-    # -------------------------
-    # Action Number
-    # -------------------------
-
-    id_text = f"#{uuid}"
-
-    id_bbox = draw.textbbox(
-        (0, 0),
-        id_text,
-        font=font_id
-    )
-
-    id_width = id_bbox[2] - id_bbox[0]
 
     draw.text(
         (
-            (width - id_width) / 2,
-            80
+            (width-number_width)/2,
+            40
         ),
-        id_text,
-        font=font_id,
+        number_text,
+        font=number_font,
         fill=text_color
     )
 
 
-    # -------------------------
-    # Action Text
-    # -------------------------
 
-    # Wrap text
-    wrapped_action = textwrap.wrap(
-        action_text,
-        width=13
-    )
+    # -----------------------------------
+    # HUGE ACTION TEXT
+    # -----------------------------------
+
+    words = action.split()
 
 
-    line_height = 125
+    lines = []
+    current = ""
+
+
+    for word in words:
+
+        test = current + " " + word
+
+        if len(test) <= 18:
+            current = test.strip()
+
+        else:
+            lines.append(current)
+            current = word
+
+
+    if current:
+        lines.append(current)
+
+
+
+    # Try large font sizes until it fits
+
+    for size in range(170, 60, -5):
+
+        action_font = get_font(
+            size,
+            bold=True
+        )
+
+
+        fits = True
+
+
+        for line in lines:
+
+            bbox = draw.textbbox(
+                (0,0),
+                line,
+                font=action_font
+            )
+
+            if bbox[2]-bbox[0] > 900:
+                fits = False
+
+
+        if fits:
+            break
+
+
+
+    line_height = size + 20
+
 
     total_height = (
-        len(wrapped_action)
+        len(lines)
         *
         line_height
     )
 
 
-    y_position = (
-        height / 2
+    y = (
+        520
         -
-        total_height / 2
-        -
-        20
+        total_height/2
     )
 
 
-    for line in wrapped_action:
+    for line in lines:
 
         bbox = draw.textbbox(
-            (0, 0),
+            (0,0),
             line,
-            font=font_action
+            font=action_font
         )
 
-        line_width = (
-            bbox[2]
-            -
-            bbox[0]
-        )
+
+        line_width = bbox[2]-bbox[0]
 
 
         draw.text(
             (
-                (width - line_width) / 2,
-                y_position
+                (width-line_width)/2,
+                y
             ),
             line,
-            font=font_action,
+            font=action_font,
             fill=text_color
         )
 
 
-        y_position += line_height
+        y += line_height
 
 
 
-    # -------------------------
+    # -----------------------------------
     # Footer
-    # -------------------------
+    # -----------------------------------
+
+    footer_font = get_font(
+        30,
+        bold=False
+    )
+
 
     footer = (
         "The Chicago Commons Independent "
@@ -194,80 +258,75 @@ def generate_card():
     )
 
 
-    footer_bbox = draw.textbbox(
-        (0, 0),
+    bbox = draw.textbbox(
+        (0,0),
         footer,
-        font=font_footer
+        font=footer_font
     )
 
 
-    footer_width = (
-        footer_bbox[2]
-        -
-        footer_bbox[0]
-    )
+    footer_width = bbox[2]-bbox[0]
 
 
     draw.text(
         (
-            (width - footer_width) / 2,
-            height - 75
+            (width-footer_width)/2,
+            height-80
         ),
         footer,
-        font=font_footer,
-        fill=accent_color
+        font=footer_font,
+        fill=footer_color
     )
 
 
-    return image, uuid, action_text
+    return image, action_id, action
 
 
 
-# -------------------------
-# Streamlit App
-# -------------------------
+# -----------------------------------
+# Streamlit Interface
+# -----------------------------------
 
 st.set_page_config(
-    page_title="198 Nonviolent Actions Generator",
+    page_title="198 Actions Generator",
     layout="wide"
 )
 
 
 st.title(
-    "The Chicago Commons: 198 Actions Card Generator"
+    "The Chicago Commons: 198 Nonviolent Actions Card Generator"
 )
 
 
 st.write(
-    "Generate minimalist social media cards based on the "
-    "198 Nonviolent Revolutionary Actions dataset."
+    "Generate minimalist social media cards from the 198 nonviolent actions dataset."
 )
 
 
 
 if st.button("Generate Random Card"):
 
-    img, uuid, action = generate_card()
+
+    img, action_id, action = generate_card()
 
 
-    # Center image
-    col1, col2, col3 = st.columns(
-        [1, 3, 1]
+    left, center, right = st.columns(
+        [1,4,1]
     )
 
 
-    with col2:
+    with center:
 
         st.image(
             img,
-            caption=f"Action #{uuid}: {action}",
-            use_container_width=True
+            width=850,
+            caption=f"Action #{action_id}: {action}"
         )
 
 
-    # Download button
 
     buffer = io.BytesIO()
+
 
     img.save(
         buffer,
@@ -276,8 +335,8 @@ if st.button("Generate Random Card"):
 
 
     st.download_button(
-        label="Download Card (PNG)",
+        label="Download Card PNG",
         data=buffer.getvalue(),
-        file_name=f"action_{uuid}_card.png",
+        file_name=f"action_{action_id}_card.png",
         mime="image/png"
     )
