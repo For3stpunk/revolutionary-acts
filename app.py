@@ -14,14 +14,11 @@ def load_data():
 df = load_data()
 
 def get_font(size, bold=False):
-    # Try common font paths across Windows, macOS, and Linux servers
+    # Cross-platform font path resolution
     font_candidates = [
-        # Linux / Streamlit Cloud common paths
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        # Windows paths
         "C:\\Windows\\Fonts\\arialbd.ttf" if bold else "C:\\Windows\\Fonts\\arial.ttf",
-        # macOS paths
         "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
     ]
     
@@ -32,7 +29,6 @@ def get_font(size, bold=False):
             except Exception:
                 continue
                 
-    # Absolute fallback if none found
     return ImageFont.load_default()
 
 def generate_card():
@@ -50,23 +46,22 @@ def generate_card():
     image = Image.new("RGB", (width, height), bg_color)
     draw = ImageDraw.Draw(image)
 
-    # Load large, clear fonts
-    font_bold = get_font(110, bold=True)
-    font_regular = get_font(72, bold=True)
+    # Load significantly larger, bold fonts for high impact
+    font_bold = get_font(140, bold=True)
+    font_regular = get_font(84, bold=True)
     font_footer = get_font(26, bold=False)
 
     # 1. Render Centered Action ID near the top
     id_str = str(uuid)
     id_bbox = draw.textbbox((0, 0), id_str, font=font_bold)
     id_width = id_bbox[2] - id_bbox[0]
-    draw.text(((width - id_width) / 2, 160), id_str, font=font_bold, fill=text_color)
+    draw.text(((width - id_width) / 2, 140), id_str, font=font_bold, fill=text_color)
 
     # 2. Render Centered Action Text below with proportional wrapping
-    wrapped_action = textwrap.wrap(action_text, width=16)
+    wrapped_action = textwrap.wrap(action_text, width=14)
     
-    line_height = 90
-    total_text_height = len(wrapped_action) * line_height
-    y_text = 400 + (200 - total_text_height) / 2
+    line_height = 100
+    y_text = 420
 
     for line in wrapped_action:
         line_bbox = draw.textbbox((0, 0), line, font=font_regular)
